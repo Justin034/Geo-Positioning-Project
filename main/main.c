@@ -13,7 +13,7 @@
 
 void app_main(void)
 {
-    // Bus Config
+    // Bus Config.
     i2c_master_bus_config_t i2c_mst_config = {
         .clk_source = I2C_CLK_SRC_DEFAULT,
         .i2c_port = 0,
@@ -26,19 +26,51 @@ void app_main(void)
     i2c_master_bus_handle_t bus_handle;
     ESP_ERROR_CHECK(i2c_new_master_bus(&i2c_mst_config, &bus_handle));
 
+    // MPU6050 Config.
     i2c_master_dev_handle_t mpu_handle = init_mpu6050(bus_handle);
 
+    // MPU6050 Gyro Setup
+    uint8_t setup_write = 0b11110000;
+    uint8_t setup_read = 0;
+    uint8_t setup_addr = 0x1B;
+    uint8_t setup[3] = {setup_addr, setup_write, setup_read};
+
+    ESP_ERROR_CHECK(i2c_master_transmit(mpu_handle, setup, 2, -1));
+    ESP_ERROR_CHECK(i2c_master_transmit_receive(mpu_handle, &setup_addr, 1, &setup[2], 1, -1));
+
+    // Buffers for read data
     uint8_t write = 0x43;
     uint8_t databuf[6] = {0};
+    int tracker = 0;
+    int x = 0;
+    int y = 0;
+    int z = 0;
+
+    while(tracker < 5) {
+        ESP_ERROR_CHECK(i2c_master_transmit_receive(mpu_handle, &write, 1, databuf, 6, -1));
+        
+        x += (uint16_t)((databuf[0]<<8) | databuf[1]);
+        y += (uint16_t)((databuf[2]<<8) | databuf[3]);
+        z += (uint16_t)((databuf[4]<<8) | databuf[5]);
+        tracker += 1;
+
+        printf("X: %d\nY: %d\nZ: %d\n", x, y, z);
+        vTaskDelay(pdMS_TO_TICKS(800));
+
+    }
+
+    x /= tracker;
+    y /= tracker;
+    z /= tracker;
 
     while(1) {
         ESP_ERROR_CHECK(i2c_master_transmit_receive(mpu_handle, &write, 1, databuf, 6, -1));
         
-        uint16_t x = (uint16_t)((databuf[0]<<8) | databuf[1]);
-        uint16_t y = (uint16_t)((databuf[2]<<8) | databuf[3]);
-        uint16_t z = (uint16_t)((databuf[4]<<8) | databuf[5]);
+        uint16_t x_corr = (uint16_t)((databuf[0]<<8) | databuf[1]) - x;
+        uint16_t y_corr = (uint16_t)((databuf[2]<<8) | databuf[3]) - y;
+        uint16_t z_corr = (uint16_t)((databuf[4]<<8) | databuf[5]) - z;
 
-        printf("X: %d\nY: %d\nZ: %d\n", x, y, z);
+        printf("X: %d\nY: %d\nZ: %d\n", x_corr, y_corr, z_corr);
         vTaskDelay(pdMS_TO_TICKS(800));
     }
     
