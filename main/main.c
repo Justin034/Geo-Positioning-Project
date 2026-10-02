@@ -30,7 +30,7 @@ void app_main(void)
     i2c_master_dev_handle_t mpu_handle = init_mpu6050(bus_handle);
 
     // MPU6050 Gyro Setup
-    uint8_t setup_write = 0b11110000;
+    uint8_t setup_write = 0b11110000;   //FSEL is set to +1000 angular/seconds
     uint8_t setup_read = 0;
     uint8_t setup_addr = 0x1B;
     uint8_t setup[3] = {setup_addr, setup_write, setup_read};
