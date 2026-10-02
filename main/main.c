@@ -46,16 +46,18 @@ void app_main(void)
     int y = 0;
     int z = 0;
 
-    while(tracker < 5) {
+    while(tracker < 100) {
         ESP_ERROR_CHECK(i2c_master_transmit_receive(mpu_handle, &write, 1, databuf, 6, -1));
         
-        x += (uint16_t)((databuf[0]<<8) | databuf[1]);
-        y += (uint16_t)((databuf[2]<<8) | databuf[3]);
-        z += (uint16_t)((databuf[4]<<8) | databuf[5]);
+        x += (int16_t)((databuf[0]<<8) | databuf[1]);
+        y += (int16_t)((databuf[2]<<8) | databuf[3]);
+        z += (int16_t)((databuf[4]<<8) | databuf[5]);
         tracker += 1;
 
-        printf("X: %d\nY: %d\nZ: %d\n", x, y, z);
-        vTaskDelay(pdMS_TO_TICKS(800));
+        printf("X: %d\nY: %d\nZ: %d\n", (int16_t)((databuf[0]<<8) | databuf[1]), (int16_t)((databuf[2]<<8) | databuf[3]), 
+                                        (int16_t)((databuf[4]<<8) | databuf[5]));
+
+        vTaskDelay(pdMS_TO_TICKS(100));
 
     }
 
@@ -66,9 +68,9 @@ void app_main(void)
     while(1) {
         ESP_ERROR_CHECK(i2c_master_transmit_receive(mpu_handle, &write, 1, databuf, 6, -1));
         
-        uint16_t x_corr = (uint16_t)((databuf[0]<<8) | databuf[1]) - x;
-        uint16_t y_corr = (uint16_t)((databuf[2]<<8) | databuf[3]) - y;
-        uint16_t z_corr = (uint16_t)((databuf[4]<<8) | databuf[5]) - z;
+        int16_t x_corr = (int16_t)((databuf[0]<<8) | databuf[1]) - x;
+        int16_t y_corr = (int16_t)((databuf[2]<<8) | databuf[3]) - y;
+        int16_t z_corr = (int16_t)((databuf[4]<<8) | databuf[5]) - z;
 
         printf("X: %d\nY: %d\nZ: %d\n", x_corr, y_corr, z_corr);
         vTaskDelay(pdMS_TO_TICKS(800));
