@@ -6,6 +6,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_err.h"
+#include "esp_timer.h"
 
 #include "mpu6050.h"
 
@@ -46,7 +47,7 @@ void app_main(void)
     int y = 0;
     int z = 0;
 
-    while(tracker < 100) {
+    while(tracker < 30) {
         ESP_ERROR_CHECK(i2c_master_transmit_receive(mpu_handle, &write, 1, databuf, 6, -1));
         
         x += (int16_t)((databuf[0]<<8) | databuf[1]);
@@ -65,6 +66,12 @@ void app_main(void)
     y /= tracker;
     z /= tracker;
 
+    float x_ang = 0;
+    float y_ang = 0;
+    float z_ang = 0;
+
+    int64_t previous_time = esp_timer_get_time();
+
     while(1) {
         ESP_ERROR_CHECK(i2c_master_transmit_receive(mpu_handle, &write, 1, databuf, 6, -1));
         
@@ -72,8 +79,21 @@ void app_main(void)
         int16_t y_corr = (int16_t)((databuf[2]<<8) | databuf[3]) - y;
         int16_t z_corr = (int16_t)((databuf[4]<<8) | databuf[5]) - z;
 
-        printf("X: %d\nY: %d\nZ: %d\n", x_corr, y_corr, z_corr);
-        vTaskDelay(pdMS_TO_TICKS(800));
+        int64_t now = esp_timer_get_time();
+
+        float dt = (now - previous_time) / 1000000.0f;
+        previous_time = now;
+
+        float x_rate = x_corr / 32.8f;
+        float y_rate = y_corr / 32.8f;
+        float z_rate = z_corr / 32.8f;
+
+        x_ang += x_rate * dt;
+        y_ang += y_rate * dt;
+        z_ang += z_rate * dt;
+
+        printf("X: %.0f\nY: %.0f\nZ: %.0f\n", x_ang, y_ang, z_ang);
+        vTaskDelay(pdMS_TO_TICKS(5));
     }
     
 
